@@ -3,6 +3,8 @@ package bullyalgorithm;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.util.Random;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  *
@@ -11,7 +13,6 @@ import java.util.Random;
 public class BullyAlgorithm {
 
     //Flag para identificar se a instancia é coord
-    
     public static boolean isCoord;
     //Armazena a porta na rede do coordenador
     public static String portCoord;
@@ -21,15 +22,22 @@ public class BullyAlgorithm {
     public static String myPort;
     //Flag para identificar se essa instancia já está fazendo uma eleição
     public static boolean doingElection;
-
+    //ServerSocket
     public static ServerSocket server;
+    //Armazena uma string representando o status do programa
+    public static String instanceStatus;
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws IOException, InterruptedException {
         createId();
-        MultiSender ms = new MultiSender();
-        ms.sendMessage("cuzao");
-        Thread thread = new Thread(new MultiRecieve());
-        thread.start();
+        creatServerSocket();
+
+        Thread threadMultiRecieve = new Thread(new MultiRecieve());
+        threadMultiRecieve.start();
+        Thread threadUniRecieve = new Thread(new UniRecieve(server));
+        threadUniRecieve.start();
+
+        whoIsTheCoordinator();
+        areYouAlive();
 
     }
 
@@ -45,6 +53,42 @@ public class BullyAlgorithm {
         server = new ServerSocket(0);
         myPort = Integer.toString(server.getLocalPort());
         System.out.println("Minha porta: " + myPort);
+    }
+
+    public static void whoIsTheCoordinator() throws IOException, InterruptedException {
+        MultiSender multiSend = null;
+        String message = "WIC->" + myPort + "->" + myId;
+        MultiSender ms = new MultiSender();
+        System.out.println("Quem manda nessa porra?");
+        instanceStatus = "WIC"; //WIC = Who Is Coordinator
+        ms.sendMessage(message);
+        
+        while ((portCoord == null)) {
+            break;
+        }
+
+    }
+
+    public static void areYouAlive() {
+        new Thread() {
+
+            @Override
+            public void run() {
+                while (true) {
+                    Random rand;
+                    rand = new Random();
+                    int sleep = rand.nextInt(10000) + 5000;
+                    try {
+                        Thread.sleep(sleep);
+                    } catch (InterruptedException ex) {
+                        Logger.getLogger(BullyAlgorithm.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+                    System.out.println("Are you alive my old friend?");
+                }
+
+            }
+        }.start();
+
     }
 
 }
