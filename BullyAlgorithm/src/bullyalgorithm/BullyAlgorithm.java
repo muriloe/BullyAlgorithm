@@ -2,6 +2,8 @@ package bullyalgorithm;
 
 import java.io.IOException;
 import java.net.ServerSocket;
+import java.net.SocketException;
+import java.net.UnknownHostException;
 import java.util.Random;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -13,7 +15,7 @@ import java.util.logging.Logger;
 public class BullyAlgorithm {
 
     //Flag para identificar se a instancia é coord
-    public static boolean isCoord;
+    public static boolean isCoord = false;
     //Armazena a porta na rede do coordenador
     public static String portCoord;
     //Armazena o id da instancia usada para a eleição na rede
@@ -25,11 +27,14 @@ public class BullyAlgorithm {
     //ServerSocket
     public static ServerSocket server;
     //Armazena uma string representando o status do programa
-    public static String instanceStatus;
+    public static String instanceStatus = "WAITING";
+    //Instancia multicast
+    public static MultiSender ms;
 
     public static void main(String[] args) throws IOException, InterruptedException {
         createId();
         creatServerSocket();
+        ms = new MultiSender();
 
         Thread threadMultiRecieve = new Thread(new MultiRecieve());
         threadMultiRecieve.start();
@@ -37,6 +42,7 @@ public class BullyAlgorithm {
         threadUniRecieve.start();
 
         whoIsTheCoordinator();
+        System.out.println("----->Entrnado no areyoualive");
         areYouAlive();
 
     }
@@ -56,15 +62,14 @@ public class BullyAlgorithm {
     }
 
     public static void whoIsTheCoordinator() throws IOException, InterruptedException {
-        MultiSender multiSend = null;
         String message = "WIC->" + myPort + "->" + myId;
-        MultiSender ms = new MultiSender();
+
         System.out.println("Quem manda nessa porra?");
         instanceStatus = "WIC"; //WIC = Who Is Coordinator
         ms.sendMessage(message);
-        
+
         while ((portCoord == null)) {
-            break;
+            Thread.sleep(10);
         }
 
     }
@@ -74,16 +79,34 @@ public class BullyAlgorithm {
 
             @Override
             public void run() {
+                System.out.println("----->Entrou no areyoualive");
                 while (true) {
-                    Random rand;
-                    rand = new Random();
-                    int sleep = rand.nextInt(10000) + 5000;
-                    try {
-                        Thread.sleep(sleep);
-                    } catch (InterruptedException ex) {
-                        Logger.getLogger(BullyAlgorithm.class.getName()).log(Level.SEVERE, null, ex);
+                    if (!(BullyAlgorithm.instanceStatus.equals("ELECTION"))) {
+                        Random rand;
+                        rand = new Random();
+
+                        int sleep = rand.nextInt(4900) + 5000;
+                        try {
+                            Thread.sleep(sleep);
+                            if (isCoord == false && portCoord != null) {
+                                if (!(instanceStatus.equals("ELECTION"))) {
+                                    instanceStatus = "WIC";
+                                    String message = "AYA->" + myPort;
+                                    UniSender.sendMessage(message, Integer.parseInt(portCoord));
+                                    System.out.println("Are you alive my old friend?");
+                                }
+                            } else {
+                                System.out.println("Eu continuo sendo coordenador");
+                            }
+                        } catch (InterruptedException ex) {
+                            System.out.println("---------------------------------ERRO 65916");
+                            Logger.getLogger(BullyAlgorithm.class.getName()).log(Level.SEVERE, null, ex);
+                        } catch (IOException ex) {
+                            System.out.println("--------------------------------ERRO 14683");
+                            Logger.getLogger(BullyAlgorithm.class.getName()).log(Level.SEVERE, null, ex);
+                        }
                     }
-                    System.out.println("Are you alive my old friend?");
+
                 }
 
             }

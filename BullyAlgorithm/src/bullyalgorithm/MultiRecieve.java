@@ -49,26 +49,50 @@ public class MultiRecieve implements Runnable {
                 System.out.println("Dados recebidos:" + data);
                 decodeMessage(data);
             } catch (Exception ex) {
-                System.out.println("Virei coordenador nessa parada!!");
-                BullyAlgorithm.isCoord = true;
-                BullyAlgorithm.portCoord = BullyAlgorithm.myPort;
-                BullyAlgorithm.instanceStatus="WAITING";
-                timeOut = 0;
-                
+                if (!(BullyAlgorithm.instanceStatus.equals("WAITING"))) {
+                    System.out.println("Virei coordenador nessa parada!!");
+                    BullyAlgorithm.isCoord = true;
+                    BullyAlgorithm.portCoord = BullyAlgorithm.myPort;
+                    MultiSender.sendMessage("IAC->" + BullyAlgorithm.myPort + "->" + BullyAlgorithm.myId);
+                    BullyAlgorithm.instanceStatus = "WAITING";
+                    Thread.sleep(100);
+                    timeOut = 0;
+                }
+
             }
 
         }
     }
 
-    public static void decodeMessage(String data) {
+    public static void decodeMessage(String data) throws IOException, InterruptedException {
         String messageDiv[] = data.split("->");
         if (messageDiv[0].equals("WIC")) {
             //Se a mensagem WIC (who is coordinator, for diferente da porta da instancia chega se a instancia é coord
             if (!(messageDiv[1].equals(BullyAlgorithm.myPort))) {
                 if (BullyAlgorithm.isCoord == true) {
+                    System.out.println("Eu sou o coordenado");
                     String answer = "IAC->" + BullyAlgorithm.myPort + "->" + BullyAlgorithm.myId;
                     UniSender.sendMessage(answer, Integer.parseInt(messageDiv[1]));
                 }
+            }
+        }
+
+        if (messageDiv[0].equals("ELECTION")) {
+            if (!(messageDiv[1].equals(BullyAlgorithm.myPort))) {
+                if (BullyAlgorithm.myId > Integer.parseInt(messageDiv[2])) {
+                    UniSender.sendMessage("OK->"+BullyAlgorithm.myPort,  Integer.parseInt(messageDiv[1]));
+                }
+                BullyAlgorithm.instanceStatus = "ELECTION";
+            }
+        }
+
+        if (messageDiv[0].equals("IAC")) {
+            if (!(messageDiv[1].equals(BullyAlgorithm.myPort))) {
+                BullyAlgorithm.portCoord = messageDiv[1];
+                BullyAlgorithm.instanceStatus = "WAITING";
+                System.out.println("Eu computador " + BullyAlgorithm.myId
+                        + " reconheco o computador ID: " + messageDiv[2]
+                        + " port: " + BullyAlgorithm.portCoord + " como o meu legitimo coordenador");
             }
         }
 
@@ -76,11 +100,16 @@ public class MultiRecieve implements Runnable {
 
     public static void checkTimeOut() throws InterruptedException {
         Thread.sleep(100);
-        if (BullyAlgorithm.instanceStatus.equals("WIC")) {
-            timeOut = 10000;
-        }
-        else{
-            timeOut = 0;
+        switch (BullyAlgorithm.instanceStatus) {
+            case "WIC":
+                timeOut = 12000;
+                break;
+            case "ELECTION":
+                timeOut = 12000;
+                break;
+            default:
+                timeOut = 1000000;
+                break;
         }
     }
 
