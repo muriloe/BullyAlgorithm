@@ -33,6 +33,7 @@ public class MultiSender {
         byte[] sendMessage = message.getBytes();
         DatagramPacket pkg = new DatagramPacket(sendMessage, sendMessage.length, addrMulti, port);
         DatagramSocket ds = new DatagramSocket();
+        System.out.println("Enviou multi");
         ds.send(pkg);
     }
 }

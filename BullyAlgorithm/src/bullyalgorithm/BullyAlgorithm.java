@@ -2,8 +2,6 @@ package bullyalgorithm;
 
 import java.io.IOException;
 import java.net.ServerSocket;
-import java.net.SocketException;
-import java.net.UnknownHostException;
 import java.util.Random;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -15,26 +13,25 @@ import java.util.logging.Logger;
 public class BullyAlgorithm {
 
     //Flag para identificar se a instancia é coord
-    public static boolean isCoord = false;
+    public static boolean isCoord;
     //Armazena a porta na rede do coordenador
-    public static String portCoord;
+    public static String portCoord = null;
     //Armazena o id da instancia usada para a eleição na rede
     public static int myId;
     //Armazena a porta da instancia
-    public static String myPort;
+    public static String myPort = null;
     //Flag para identificar se essa instancia já está fazendo uma eleição
     public static boolean doingElection;
     //ServerSocket
     public static ServerSocket server;
     //Armazena uma string representando o status do programa
-    public static String instanceStatus = "WAITING";
-    //Instancia multicast
-    public static MultiSender ms;
+    public static String instanceStatus;
+    public static boolean isCoordAlive = false;
+    public static boolean okMessage = false;
 
     public static void main(String[] args) throws IOException, InterruptedException {
         createId();
         creatServerSocket();
-        ms = new MultiSender();
 
         Thread threadMultiRecieve = new Thread(new MultiRecieve());
         threadMultiRecieve.start();
@@ -42,7 +39,6 @@ public class BullyAlgorithm {
         threadUniRecieve.start();
 
         whoIsTheCoordinator();
-        System.out.println("----->Entrnado no areyoualive");
         areYouAlive();
 
     }
@@ -62,14 +58,50 @@ public class BullyAlgorithm {
     }
 
     public static void whoIsTheCoordinator() throws IOException, InterruptedException {
-        String message = "WIC->" + myPort + "->" + myId;
 
-        System.out.println("Quem manda nessa porra?");
-        instanceStatus = "WIC"; //WIC = Who Is Coordinator
-        ms.sendMessage(message);
+        if (okMessage == true) {
+            portCoord = null;
+            String message = "WIC->" + myPort + "->" + myId;
+            MultiSender ms = new MultiSender();
+            System.out.println("Quem manda nessa porra?");
+            boolean foundCoord = false;
+            while (portCoord == null) {
+                ms.sendMessage(message);
+                long startTime = System.currentTimeMillis(); //fetch starting time
+                while (false || (System.currentTimeMillis() - startTime) < 10000) {
+                    Thread.sleep(10); //Não apagar
+                    if (portCoord != null && portCoord != myPort) {
+                        System.out.println(instanceStatus);
+                        foundCoord = true;
+                        break;
+                    }
+                }
+            }
 
-        while ((portCoord == null)) {
-            Thread.sleep(10);
+        }
+
+        if (okMessage == false) {
+            portCoord = null;
+            String message = "WIC->" + myPort + "->" + myId;
+            MultiSender ms = new MultiSender();
+            System.out.println("Quem manda nessa porra?");
+            boolean foundCoord = false;
+            ms.sendMessage(message);
+
+            long startTime = System.currentTimeMillis(); //fetch starting time
+            while (false || (System.currentTimeMillis() - startTime) < 10000) {
+                Thread.sleep(10); //Não apagar
+                if (portCoord != null && portCoord != myPort) {
+                    System.out.println(instanceStatus);
+                    foundCoord = true;
+                    break;
+                }
+            }
+            if (foundCoord == false) {
+                System.out.println("Virei coordenador!!!");
+                isCoord = true;
+                portCoord = myPort;
+            }
         }
 
     }
@@ -79,38 +111,77 @@ public class BullyAlgorithm {
 
             @Override
             public void run() {
-                System.out.println("----->Entrou no areyoualive");
                 while (true) {
-                    if (!(BullyAlgorithm.instanceStatus.equals("ELECTION"))) {
-                        Random rand;
-                        rand = new Random();
+                    Random rand;
+                    rand = new Random();
+                    int sleep = rand.nextInt(10000) + 5000;
+                    try {
+                        Thread.sleep(sleep);
+                    } catch (InterruptedException ex) {
+                        Logger.getLogger(BullyAlgorithm.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+                    if (isCoord == false) {
+                        System.out.println("Are you alive my old friend?");
+                        UniSender.sendMessage("AYA->" + myPort + "->" + myId, Integer.parseInt(portCoord));
 
-                        int sleep = rand.nextInt(4900) + 5000;
-                        try {
-                            Thread.sleep(sleep);
-                            if (isCoord == false && portCoord != null) {
-                                if (!(instanceStatus.equals("ELECTION"))) {
-                                    instanceStatus = "WIC";
-                                    String message = "AYA->" + myPort;
-                                    UniSender.sendMessage(message, Integer.parseInt(portCoord));
-                                    System.out.println("Are you alive my old friend?");
-                                }
-                            } else {
-                                System.out.println("Eu continuo sendo coordenador");
+                        isCoordAlive = false;
+                        long startTime = System.currentTimeMillis(); //fetch starting time
+                        while (false || (System.currentTimeMillis() - startTime) < 10000) {
+                            try {
+                                Thread.sleep(10); //Não apagar
+                            } catch (InterruptedException ex) {
+                                Logger.getLogger(BullyAlgorithm.class.getName()).log(Level.SEVERE, null, ex);
                             }
-                        } catch (InterruptedException ex) {
-                            System.out.println("---------------------------------ERRO 65916");
-                            Logger.getLogger(BullyAlgorithm.class.getName()).log(Level.SEVERE, null, ex);
-                        } catch (IOException ex) {
-                            System.out.println("--------------------------------ERRO 14683");
-                            Logger.getLogger(BullyAlgorithm.class.getName()).log(Level.SEVERE, null, ex);
+                            if (isCoordAlive == true) {
+                                System.out.println(instanceStatus);
+
+                                break;
+                            }
                         }
+                        if (isCoordAlive == false) {
+                            try {
+                                election();
+                            } catch (IOException ex) {
+                                System.out.println(ex);
+                            } catch (InterruptedException ex) {
+                                System.out.println(ex);
+                            }
+                        }
+                    } else {
+                        System.out.println("Ainda sou coordenador");
                     }
 
                 }
 
             }
         }.start();
+    }
+
+    public static void election() throws IOException, InterruptedException {
+        System.out.println("----------INICIANDO ELEIÇÃO----------");
+        long startTime = System.currentTimeMillis(); //fetch starting time
+        okMessage = false;
+        MultiSender.sendMessage("ELECTION->" + myPort + "->" + myId);
+        while (false || (System.currentTimeMillis() - startTime) < 10000) {
+            try {
+                Thread.sleep(10); //Não apagar
+            } catch (InterruptedException ex) {
+                Logger.getLogger(BullyAlgorithm.class.getName()).log(Level.SEVERE, null, ex);
+            }
+            if (okMessage == true) {
+                System.out.println(instanceStatus);
+
+                break;
+            }
+        }
+        if (okMessage == true) {
+            System.out.println("sleep 15s");
+            Thread.sleep(15000);
+            whoIsTheCoordinator();
+        }
+        if (okMessage == false) {
+            whoIsTheCoordinator();
+        }
 
     }
 

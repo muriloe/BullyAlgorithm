@@ -15,19 +15,15 @@ public class UniSender {
     public UniSender() {
     }
 
-    public static void sendMessage(String message, int portToSend) throws IOException, InterruptedException {
+    public static void sendMessage(String message, int portToSend) {
         Socket clientSocket;
         try {
             clientSocket = new Socket("localhost", portToSend);
             DataOutputStream outToServer = new DataOutputStream(clientSocket.getOutputStream());
             outToServer.writeUTF(message);
+            System.out.println("Enviou uni " + message);
         } catch (IOException ex) {
-            if (!(BullyAlgorithm.instanceStatus.equals("WAITING"))) {
-                System.out.println("Iniciando Eleição");
-                BullyAlgorithm.instanceStatus = "ELECTION";
-                MultiSender.sendMessage("ELECTION->" + BullyAlgorithm.myPort + "->" + BullyAlgorithm.myId);
-            }
-            Thread.sleep(100);
+            System.out.println("não foi possível enviar unicast: " + ex);
         }
     }
 
